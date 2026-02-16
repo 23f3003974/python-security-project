@@ -2,10 +2,10 @@ from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import os
-import json
 
 app = FastAPI()
 
+# Enable CORS for the grader
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,21 +13,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load JSON data
-# This looks in the same folder as the script itself
+# This path works specifically for Vercel's serverless environment
 FILE_PATH = os.path.join(os.path.dirname(__file__), "telemetry_pings.json")
 
-@app.post("/api/telemetry")
+@app.post("/api")
 async def calculate_metrics(regions: list = Body(...), threshold_ms: int = Body(...)):
-    # Read the JSON file into a DataFrame
-    # If the JSON is a simple list of records, pd.read_json works perfectly
+    if not os.path.exists(FILE_PATH):
+        return {"error": "Data file not found"}
+        
     df = pd.read_json(FILE_PATH)
-    
     results = {}
     
     for region in regions:
         region_df = df[df['region'] == region]
-        
         if region_df.empty:
             continue
             
@@ -37,5 +35,4 @@ async def calculate_metrics(regions: list = Body(...), threshold_ms: int = Body(
             "avg_uptime": float(region_df['uptime_pct'].mean()),
             "breaches": int((region_df['latency_ms'] > threshold_ms).sum())
         }
-        
     return results
