@@ -5,7 +5,6 @@ import os
 
 app = FastAPI()
 
-# Enable CORS for the grader
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,26 +12,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# This path works specifically for Vercel's serverless environment
+# Force the path to be local to the api folder
 FILE_PATH = os.path.join(os.path.dirname(__file__), "telemetry_pings.json")
+
+@app.get("/api")
+def health_check():
+    return {"status": "alive", "file_exists": os.path.exists(FILE_PATH)}
 
 @app.post("/api")
 async def calculate_metrics(regions: list = Body(...), threshold_ms: int = Body(...)):
-    if not os.path.exists(FILE_PATH):
-        return {"error": "Data file not found"}
-        
     df = pd.read_json(FILE_PATH)
     results = {}
-    
     for region in regions:
         region_df = df[df['region'] == region]
-        if region_df.empty:
-            continue
-            
-        results[region] = {
-            "avg_latency": float(region_df['latency_ms'].mean()),
-            "p95_latency": float(region_df['latency_ms'].quantile(0.95)),
-            "avg_uptime": float(region_df['uptime_pct'].mean()),
-            "breaches": int((region_df['latency_ms'] > threshold_ms).sum())
-        }
+        if not region_df.empty:
+            results[region] = {
+                "avg_latency": float(region_df['latency_ms'].mean()),
+                "p95_latency": float(region_df['latency_ms'].quantile(0.95)),
+                "avg_uptime": float(region_df['uptime_pct'].mean()),
+                "breaches": int((region_df['latency_ms'] > threshold_ms).sum())
+            }
     return results
