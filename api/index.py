@@ -14,7 +14,8 @@ app.add_middleware(
 )
 
 # Load JSON data
-FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "telemetry_pings.json")
+# This looks in the same folder as the script itself
+FILE_PATH = os.path.join(os.path.dirname(__file__), "telemetry_pings.json")
 
 @app.post("/api/telemetry")
 async def calculate_metrics(regions: list = Body(...), threshold_ms: int = Body(...)):
